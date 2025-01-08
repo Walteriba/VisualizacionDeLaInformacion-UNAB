@@ -1,0 +1,124 @@
+---
+title: "Mapeando datos a elementos del gráfico"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(lubridate)
+knitr::opts_chunk$set(echo = FALSE, comment = "")
+
+# lectura des datos desde una url
+temperaturas <- read_csv("https://wilkelab.org/SDS375/datasets/tempnormals.csv") %>%
+  mutate(
+    location = factor(
+      location, levels = c("Death Valley", "Houston", "San Diego", "Chicago")
+    )
+  ) %>%
+  select(location, day_of_year, month, temperature)
+
+temps_houston <- filter(temperaturas, location == "Houston")
+```
+
+## Introducción
+
+El objetivo de estos ejercicios es repasar una idea clave para usar el paquete ggplot, el mapeo de datos en elementos del gráfico.
+
+Usaremos el paquete **tidyverse**, que incluye `ggplot()` y otras funciones asociadas.
+
+```{r library-calls, echo = TRUE, eval = FALSE}
+# carga las librerías asociadas
+library(tidyverse)
+```
+
+La base de datos incluye la temperatura media (`temperature`) para cada día del año (`day_of_year`) y mes (`month`) en distintos lugares (`location`). En particular, el data.frame `temps_houston` tiene un parte de los datos correspondientes a la ciudad de Houston:
+
+```{r temps-houston, echo = TRUE}
+temps_houston
+```
+
+## Primeros pasos con ggplot
+
+Para comenzar cualquier gráfico, llamamos a la función `ggplot()` a la que le indicamos el data set a usar y las variables o columnas de ese data set a *mapear* con la función `aes()`. Luego, será necesario indicar con que geometría queremos representar los datos. Por ejemplo `geom_line()` dibujará lineas y `geom_point()` dibujará puntos.
+
+Tu turno. Mapea la columna `day_of_year` al eje x y la columna `temperature` al eje y. Usá `geom_line()` para mostrar los datos como lineas.
+
+```{r ggplot}
+ggplot(temps_houston, aes(x = day_of_year, y = temperature)) +
+  geom_line()
+```
+
+Ahora probá con `geom_point()` en vez de `geom_line()`.
+
+```{r ggplot2}
+ggplot(temps_houston, aes(x = day_of_year, y = temperature)) +
+  geom_point()
+```
+
+Probá cambiar que columna mapeas en el eje x y que columna mapeas en el eje y. 
+
+```{r ggplot3}
+ggplot(temps_houston, aes(x = temperature, y = day_of_year)) +
+  geom_point()
+```
+
+
+## Usando el color
+
+Ahora vamos a usar el set de datos completo `temperaturas`, que contiene la temperatura de 4 ciudades en total.
+
+```{r temperaturas, echo = TRUE}
+temperaturas
+```
+
+Crea un gráfico de lineas que muestre la temperatura (`temperature`) a lo largo de los días del año (`day_of_year`) usando la caracterísatica estética `color` para mapear la ubicación (`location`).
+
+```{r ggplot-color}
+ggplot(temperaturas, aes(x = day_of_year, y = temperature, color = location)) +
+  geom_line()
+```
+
+Vamos de nuevo pero ahora mapeá `location` al eje y, y `temperature` al color. Vas a necesitar cambiar la geometría para que sean puntos (`geom_point()`) para que los datos se vean bien.
+
+```{r ggplot-color2}
+ggplot(temperaturas, aes(x = day_of_year, y = location, color = temperature)) +
+  geom_point(size = 10) # Un poco mas grande, asi se nota mejor el gradiente
+```
+
+(Pista: Intentá `geom_point(size = 5)` para agrandar el tamaño de los puntos.)
+
+## Usando el relleno o `fill`
+
+Algunas geometrías tienen relleno o `fill`, que es similar al `color` pero afecta "areas". Por ejemplo, un gráfico de barras tendrá relleno (la parte interna de las barras) y color (el borde que delimina esas barras). Hay algunas formas que se utilizan para gráficos de puntos que tienen estas mismas propiedades: borde y relleno. Completá el siguiente código para generar un gráfico de puntos usando la forma número 21 (`shape = 21`). En el eje x graficá el día del año y en el eje y la temperatura. Mapea el color de los puntos de acuerdo a la ubicación. 
+
+```{r ggplot-fill}
+ggplot(temperaturas, aes(x = day_of_year, y = temperature, color = location)) +
+  geom_point(aes(color = location), shape = 21, size = 3) #puntos más grandes para ver mejor las diferencias
+```
+
+
+Ahora probá modificar el gráfico anterior para mapear el relleno (`fill`) a la ubicación. 
+
+```{r ggplot-fill2}
+ggplot(temperaturas, aes(x = day_of_year, y = temperature)) +
+  geom_point(aes(fill = location), shape = 21, size = 3) #puntos más grandes para ver mejor las diferencias
+```
+
+## Usando características estéticas como parámetros
+
+Muchas características estéticas (como `color`, `fill`, y también `size` para cambiar el tamaño de un punto o el grosor de una linea) pueden usarse como parámetros en las geometrías *sin asociarlos a los datos*. Esto significa, entre otras cosas, que ira fuera de la función `aes()`. La diferencia es que cuando usas un elemento estético como parámentro, definís un valor específico: por ejemplo `color = "blue"`, en vez de mapear datos a esa característica (`aes(color = location)`). Es importante notar que adentro del `aes()` no definimos específicamente los colores que vamos a usar. ggplot2 lo hace automáticamente (y ya veremos como modificarlos para usar colores más lindos). Cuando decimos `aes(color = location)` ggplot revisará los datos y los interpretará para definir automáticamente los colores. En este caso tenemos una variable categórica que tiene 4 categorías (o ubicaciones) y por lo tanto usa 4 colores. 
+
+Con el gráfico de la sección anterior, mapeá la ubicación al `fill` y el color a `"red"` como parámetro.
+
+```{r ggplot-params}
+ggplot(temperaturas, aes(x = day_of_year, y = temperature)) +
+  geom_point(aes(fill = location),color = "red", shape = 21, size = 3) #puntos más grandes para ver mejor las diferencias
+```
+
+Ahora al revez. Mapea la ubicación al color y rellená los puntos con el color rojo.
+
+```{r ggplot-params2}
+ggplot(temperaturas, aes(x = day_of_year, y = temperature)) +
+  geom_point(aes(color = location), fill = "red", shape = 21, size = 3) #puntos más grandes para ver mejor las diferencias
+```
+

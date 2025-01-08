@@ -1,0 +1,453 @@
+---
+title: "Clase_06"
+author: "Raul Marusca"
+date: "2024-10-14"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+# install.packages("datos")
+# install.packages("ggridges")
+# install.packages()
+# install.packages("scales")
+
+
+library(tidyverse)
+library(datos)
+library(ggridges)
+library(lubridate)
+
+# Cargamos los datasets que vamos a usar
+pinguinos <- datos::pinguinos
+paises <- datos::paises
+clima <- datos::clima
+
+```
+
+
+# Clase 6
+## Tendencias
+
+Vimos que a mayor tamaño de aleta, mayor el largo del pico, así que debe haber una relación "lineal" entre esas medidas. Vamos a ver si también existen relaciones "no-lineales" que se puedan agregar visualmente al código
+
+```{r message=FALSE, warning=FALSE}
+pinguinos %>% ggplot(aes(x=largo_pico_mm, y=largo_aleta_mm)) + 
+  geom_point()
+
+```
+Le agregamos una capa (con +) de estadística que nos realiza esa tarea.
+
+```{r message=FALSE, warning=FALSE}
+pinguinos %>% ggplot(aes(x=largo_pico_mm, y=largo_aleta_mm)) + 
+  geom_point() +
+  geom_smooth()
+
+```
+Por defecto usa un ajuste que se llama *loess* pero podemos asignarle uno lineal
+
+```{r}
+pinguinos %>% ggplot(aes(x=largo_pico_mm, y=largo_aleta_mm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm")
+
+```
+El área gris es el *intervalo de confianza* (ya que presupone que los datos vienen de un *muestreo*) Y se puede desactivar
+
+```{r}
+pinguinos %>% ggplot(aes(x=largo_pico_mm, y=largo_aleta_mm)) + 
+  geom_point() + 
+  geom_smooth(method = "glm", se = FALSE)
+
+```
+Se lo podemos aplicar a agrupamientos realizados enel grafico. En este caso, por especie
+```{r}
+pinguinos %>% ggplot(aes(x=largo_pico_mm, y=largo_aleta_mm)) + 
+  geom_point(aes(color = especie)) + 
+  geom_smooth(aes(color =especie), method = "glm")
+
+```
+## Series de tiempo
+Hay datos que tienen una relación con el tiempo. Se modifican en función del paso del mismo. Las temperaturas diarias, la cantidad e pasajeros por hora, los litros de combustible vendidos por minuto, etc, etc  
+Y ggplot tiene geometrías para representar esas relaciones
+
+Vamos a usar otros datos distintos a los pinguinos
+
+```{r}
+# info de paises
+paises_latinoamerica <- paises %>% 
+  filter(pais %in% c("Argentina", "Brasil", "Uruguay", "Chile"))
+
+# temperatura de aeropuertos
+temperatura_diaria <- clima %>% 
+  group_by(tiempo = lubridate::make_date(anio, mes, dia), origen) %>% 
+  mutate(temperatura = mean(temperatura)) 
+```
+
+```{r}
+paises_latinoamerica
+```
+```{r}
+temperatura_diaria
+```
+Vamos a graficar el PBI de la República Argentina entre 1970 y 2007
+Para eso usamos dplyr y el método filter
+
+```{r}
+argentina_1990_2010 <- paises_latinoamerica %>% 
+  filter(pais == "Argentina",
+         anio >= 1970,
+         anio <= 2007)
+
+argentina_1990_2010
+```
+Ahora hacemos un grafico de puntos con esa informacion
+```{r}
+argentina_1990_2010 %>% ggplot(aes(x=anio, y=pib_per_capita)) +
+  geom_point()
+
+```
+No es muy claro que digamos, para eso tenemos la geometria geom_line
+```{r}
+argentina_1990_2010 %>% ggplot(aes(x=anio, y=pib_per_capita)) +
+  geom_line()
+
+```
+Podemos mejorar eso usando ambas geometrías para señalar cuando fueron tomadas las muestras
+```{r}
+argentina_1990_2010 %>% ggplot(aes(x=anio, y=pib_per_capita)) +
+  geom_line() + 
+  geom_point()
+
+```
+Y si queremos mostrar el pbi de varios países?
+```{r}
+paises_latinoamerica %>% ggplot(aes(x = anio, y = pib_per_capita)) +
+  geom_point()
+```
+Necesitamos diferenciar de alguna forma por país
+```{r}
+paises_latinoamerica %>% ggplot(aes(x = anio, y = pib_per_capita, color = pais)) +
+  geom_point()
+```
+Podemos también agregar algun otro canal para diferenciar países
+```{r}
+paises_latinoamerica %>% ggplot(aes(x = anio, y = pib_per_capita, colour = pais)) +
+  geom_point(aes(size = pais))
+```
+Se pueden poner dentro de la estructura de ggplot
+```{r}
+paises_latinoamerica %>% ggplot(aes(x = anio, y = pib_per_capita, color = pais, shape = pais)) +
+  geom_point()
+```
+
+Y convendría que agreguemos la linea
+```{r}
+paises_latinoamerica %>% ggplot(aes(x = anio, y = pib_per_capita, colour = pais)) +
+  geom_point() +
+  geom_line()
+```
+Podemos combinar varios canales
+```{r}
+paises_latinoamerica %>% ggplot(aes(x = anio, y = pib_per_capita, colour = pais)) +
+  geom_point(aes(shape = pais)) +
+  geom_line()
+```
+PAUSA
+
+## Texto en graficos
+Un grafico sin texto suele parecer muy vacio
+```{r}
+pinguinos %>% ggplot(aes(x=sexo)) +
+  geom_bar(aes(fill=especie))
+```
+Se le agrega una capa con etiquetas (labels) Esto es L1
+```{r}
+pinguinos %>% ggplot(aes(x=sexo)) +
+  geom_bar(aes(fill=especie)) + 
+  labs(title = "Cantidad de pinguinos por especie y por sexo",
+       subtitle = "Fuente: Paquete de datos, dataset pinguinos",
+       x= "Sexo",
+       y= "Cantidad",
+       fill = "Especie",
+       caption = "total de casos:344")
+
+```
+Tambien podemos decorar el grafico de siempre
+```{r message=FALSE, warning=FALSE}
+pinguinos %>% ggplot(aes(x=largo_pico_mm, y=largo_aleta_mm, color = especie)) + 
+  geom_point() +
+  labs(title = "Relacion entre el largo de pico y aleta",
+       subtitle = "Fuente: Paquete de datos, dataset pinguinos",
+       x= "Largo del pico (mm)",
+       y= "Largo de la aleta (mm)",
+       fill = "Especie",
+       caption = "total de casos:344")
+
+```
+Y que pasa si quiero agregar texto DENTRO del gráfico? Esto seria L2, 3 y 4
+
+```{r message=FALSE, warning=FALSE}
+pinguinos %>% ggplot(aes(x=largo_pico_mm, y=largo_aleta_mm, color = especie)) + 
+  geom_point() +
+  labs(title = "Relacion entre el largo de pico y aleta",
+       subtitle = "Fuente: Paquete de datos, dataset pinguinos",
+       x= "Largo del pico (mm)",
+       y= "Largo de la aleta (mm)",
+       fill = "Especie",
+       caption = "total de casos:344") + 
+  annotate("text", x = 38, y = 215, angle = 39.5,
+       	label = "Mientras más largo el pico, más larga la aleta") +
+  annotate("segment", x = 33, xend = 45, y = 195, yend = 230,  arrow = arrow())
+```
+Pero usando librerias adicionales podemos hacer cosas mas presentables
+```{r message=FALSE, warning=FALSE}
+
+library(geomtextpath)
+pinguinos %>% ggplot(aes(x=largo_pico_mm, y=largo_aleta_mm)) + # Si el aes de color va aca hay que hacer 3 labelsmooth
+  geom_point(aes(color = especie)) + # esto es importante!!! tiene que ir aca el aes de color
+  geom_labelsmooth(method = "lm", 
+                   label = "Mientras más largo el pico, más larga la aleta", alpha = 0.9,
+                   arrow = arrow()) +
+  labs(title = "Relacion entre el largo de pico y aleta",
+       subtitle = "Fuente: Paquete de datos, dataset pinguinos",
+       x= "Largo del pico (mm)",
+       y= "Largo de la aleta (mm)",
+       fill = "Especie",
+       caption = "total de casos:344") 
+  
+      
+```
+Ahora supongamos que queremos anotar algo que es un dato de nuestra estructura de datos.
+Si queremos aclarar cual es la muestra que queremos destacar, primero tenemos que identificarla
+Vamos a identificar al pinguino con mas masa
+```{r message=FALSE, warning=FALSE}
+# busco al mas pesado
+mas_pesado <- pinguinos %>% arrange(desc(masa_corporal_g)) %>% 
+  head(n=1)
+
+
+pinguinos %>% ggplot(aes(x=largo_pico_mm, y=largo_aleta_mm)) + 
+  geom_point(aes(color = especie)) + 
+  geom_text(data = mas_pesado, aes(label = paste0(masa_corporal_g, " gr")), nudge_y = 2) + # Agrega el texto, Nudge desplaza
+  geom_point(data = mas_pesado, shape = 21, size = 3, fill = NA) + # pone un circulo
+  labs(title = "Relacion entre el largo de pico y aleta",
+       subtitle = "Fuente: Paquete de datos, dataset pinguinos",
+       x= "Largo del pico (mm)",
+       y= "Largo de la aleta (mm)",
+       fill = "Especie",
+       caption = "total de casos:344") 
+  
+      
+```
+Y tambien tenemos una libreria que nos ayuda
+```{r message=FALSE, warning=FALSE}
+library(ggforce)
+
+pinguinos %>%
+  filter(!is.na(masa_corporal_g))  %>%  # Elimina el mas pesado de la tabla que vamos a
+  ggplot(aes(largo_pico_mm, largo_aleta_mm)) +
+  geom_point(aes(color=especie))+
+  geom_mark_circle(aes(filter = masa_corporal_g == max(masa_corporal_g, na.rm = TRUE),
+                       label = masa_corporal_g, color = "red")) +
+  labs(title = "Relacion entre el largo de pico y aleta",
+       subtitle = "Fuente: Paquete de datos, dataset pinguinos",
+       x= "Largo del pico (mm)",
+       y= "Largo de la aleta (mm)",
+       fill = "Especie",
+       caption = "total de casos:344") 
+  
+      
+```
+Podemos hacerlo mejor aun (excepto por la leyenda...ya aprenderemos a corregirlo)
+```{r message=FALSE, warning=FALSE}
+library(ggforce)
+
+pinguinos %>%
+  filter(!is.na(masa_corporal_g))  %>% 
+  ggplot(aes(largo_pico_mm, largo_aleta_mm)) +
+  geom_point(aes(color=especie))+
+  geom_point(data = mas_pesado, color = "red") +
+  geom_mark_circle(aes(filter = masa_corporal_g == max(masa_corporal_g, na.rm = TRUE),
+                       label = masa_corporal_g, color = "blue")) +
+  labs(title = "Relacion entre el largo de pico y aleta",
+       subtitle = "Fuente: Paquete de datos, dataset pinguinos",
+       x= "Largo del pico (mm)",
+       y= "Largo de la aleta (mm)",
+       fill = "Especie",
+       caption = "total de casos:344") 
+  
+      
+```
+
+PAUSA
+
+## Escalas
+Es una familia de funciones de la forma scale_<eje_o_elemento>_<tipo>
+
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar() +
+  scale_x_discrete() + # porque son categorias
+  scale_y_continuous() # porque son cantidades
+
+```
+Podemos ponerle limites a los valores
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar() +
+  scale_x_discrete() +
+  scale_y_continuous(limits = c(0, 200))
+```
+Podemos aumentar la granularidad de las etiquetas en el eje y
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar() +
+  scale_x_discrete() +
+  scale_y_continuous(limits = c(0, 200),
+                     breaks = seq(0, 200, 25))
+
+```
+BTW, parecen quedar mejor los breaks que terminan en 5
+También podemos editar el texto que se pone en las escalas categóricas (por si queremos que lleven ñ, por ejemplo)
+
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar() +
+  scale_x_discrete(labels = c("Pinguino1", "Pinguino2", "Pinguino3")) + # Nuevas etiquetas en el eje x
+  scale_y_continuous(limits = c(0, 200),
+                     breaks = seq(0, 200, 25),
+                     expand = c(0, 1)) # elimina el "saltito" hacia abajo y arriba del area gris con respecto a los eje
+
+```
+
+Se puede mover la posición de la escala
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar() +
+  scale_x_discrete(labels = c("P1", "P2", "P3"),    
+                    position = "top") + # Lo mandamos a la parte de arriba
+  scale_y_continuous(limits = c(0, 200),
+                 	breaks = seq(0, 200, 25),
+                 	expand = c(0, 1))
+```
+Tambien podemos eliminar valores categóricos, por ejemplo
+
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar() +
+  scale_x_discrete(labels = c("P1", "P2", "P3"), 
+  position = "top", 
+  limits = c("Adelia","Barbijo")) + # Hay que conocer el dataset...
+  scale_y_continuous(limits = c(0, 200),
+                 	breaks = seq(0, 200, 25),
+                 	expand = c(0, 1))
+```
+Se usan para cambiar la linealidad de los ejes. 
+En algunos casos es importante usar escalas logaritmicas
+```{r}
+ggplot(paises, 
+       aes(pib_per_capita, esperanza_de_vida)) +
+  geom_point() +
+  scale_x_continuous()
+
+```
+```{r}
+ggplot(paises, 
+       aes(pib_per_capita, esperanza_de_vida)) +
+  geom_point() +
+  scale_x_log10() 
+```
+No se si vieron los números en el eje x
+Se puede corregir usando la librería **scales**
+Y queda mucho mas presentable
+```{r}
+library(scales)
+ggplot(paises, 
+       aes(pib_per_capita, esperanza_de_vida)) +
+  geom_point() +
+  scale_x_log10(labels = label_log())
+```
+
+
+## Escalas para fechas y horas
+Las escalas temporales suelen ser problemáticas porque hay muchas formas de escribir fechas.
+Es por eso que ggplot tiene un apartado especifico para tratarlas y para mostrarlas
+
+Esta vez vamos a usar el dataset *clima*  Que contiene datos meteorologicos de unos aeropuertos de USA
+```{r}
+clima
+```
+Tenemos un problema con la forma en la que esta puesta la fecha, hay 4 campos de la tabla para registrala.
+Lo que deberíamos hacer es crear una nueva columna en el dataset (con *mutate* de **dlyr**) y que sea del tipo datetime.
+R tiene la librería lubridate que nos da muchas funciones útiles para trabajar con fechas y horas. Y conviene usarla para simplificar el trabajo.
+```{r}
+clima %>% 
+  mutate(fecha = lubridate::make_datetime(anio, mes, dia, hora)) %>% 
+  filter(origen == "LGA" ) %>%  # Elegimos un aeropuerto
+  ggplot(aes(fecha, temperatura)) +
+  geom_line()
+
+```
+ggplot decide que etiquetas va a poner en el eje de las fechas, pero algo podemos operar sobre esa decisión
+Una es con los *breaks* o cada cuanto pone el dato.
+Pero también nos cambia el formato en el que pone las fechas (para determinar la separación, necesita el dato del dia)
+
+```{r}
+clima %>% 
+  mutate(fecha = lubridate::make_datetime(anio, mes, dia, hora)) %>% 
+  filter(origen == "LGA" ) %>% 
+  ggplot(aes(fecha, temperatura)) +
+  geom_line() +
+  scale_x_datetime(date_breaks = "3 months")
+```
+Pero lo podemos volver a lo que queríamos usando los formatos de fecha que dispone scale_x_datetime
+```{r}
+clima %>% 
+  mutate(fecha = lubridate::make_datetime(anio, mes, dia, hora)) %>% 
+  filter(origen == "LGA" ) %>% 
+  ggplot(aes(fecha, temperatura)) +
+  geom_line(color = "blue") +
+  scale_x_datetime(date_breaks = "3 months",
+                   date_labels = "%b %Y") # %b es mes en nombre corto y %Y es año en 4 cifras
+```
+
+
+```{r}
+clima %>% 
+  mutate(fecha = lubridate::make_datetime(anio, mes, dia, hora)) %>% 
+  filter(origen == "LGA" ) %>% 
+  ggplot(aes(fecha, temperatura)) +
+  geom_line(color = "blue") +
+  scale_x_datetime(date_breaks = "3 months",
+                   date_labels = "%B") # %B es mes en formato completo
+```
+
+## Escalas para FORMAS 
+Si bien no es exactamente un cambio en las escalas de los ejes, si es un cambio manual en que forma (o eventualmente tipo de lineas) para definir que forma va a representar a que dato en nuestros aes.
+Esto también se usa con colores y lo vamos a ver luego
+
+Con un ejemplo lo vamos a entender mejor
+Vean las formas que automáticamente elige ggplot para señalar los continentes de cada país
+```{r}
+ggplot(paises, aes(pib_per_capita, esperanza_de_vida)) +
+  geom_point(aes(color = continente, shape = continente)) +
+  scale_x_log10(labels = label_log())
+```
+Pero ahora nosotros queremos que sean otras formas y las asignamos manualmente
+```{r}
+ggplot(paises, aes(pib_per_capita, esperanza_de_vida)) +
+  geom_point(aes(color = continente, shape = continente)) +
+  scale_x_log10(labels = label_log()) +
+  scale_shape_manual(values = c(1, 2, 3, 4, 5))
+
+```
+
+Hasta la semana próxima!
+

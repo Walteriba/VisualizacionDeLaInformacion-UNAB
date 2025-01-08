@@ -1,0 +1,200 @@
+---
+title: "Clase04"
+author: "nosotros"
+date: "2024-09-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(datos)
+library(ggplot2)
+library(gapminder)
+library(dplyr)
+```
+
+No tenemos las cantidades calculadas
+```{r}
+pinguinos <- datos::pinguinos
+```
+
+Las calculamos
+```{r}
+totales_p <- count(pinguinos, especie)
+
+totales <- pinguinos %>% 
+  count(especie)
+```
+```{r}
+totales_p
+```
+
+
+Cantidades calculadas en totales (se usa geom_col)
+```{r}
+ggplot(totales,aes(x=especie, y=n)) +
+  geom_col()
+```
+
+cantidades sin calcular (se usa geom_bar)
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar()
+```
+
+Color segun otra variable (No, esta mal!!!)
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar(aes(color = isla)) 
+```
+Relleno con el color d eotra variable
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar(aes(fill = isla)) 
+```
+Posicion apilada, la por defecto
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar(aes(fill = isla), position = "stack") 
+```
+Posicion superpuesta
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar(aes(fill = isla), position = "identity") 
+```
+Posicion superpuesta con transparencia
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar(aes(fill = isla), position = "identity", alpha = 0.5) 
+```
+Posicion desplazada
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar(aes(fill = isla), position = "dodge")
+```
+
+Usando calculos internos de ggplot - proporciones
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar(aes(y = after_stat(prop), group = 1))
+```
+
+
+# ##############################################################################
+
+
+```{r}
+pinguinos <- datos::pinguinos
+```
+
+
+## Factores a secas
+
+```{r}
+
+mes <- c("Dic", "Abr", "Ene", "Mar")
+mes
+```
+
+```{r}
+sort(mes)
+```
+
+
+```{r}
+mes[5] <- "Jus"
+mes
+```
+
+```{r}
+meses_del_anio <- c(
+  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
+)
+```
+
+```{r}
+mes_factor <- factor(c("Dic", "Abr", "Ene", "Mar"), levels = meses_del_anio)
+mes_factor
+```
+
+```{r}
+sort(mes_factor)
+```
+
+```{r}
+mes_factor[5] <- "Eme"
+mes_factor
+```
+
+```{r}
+sort(mes_factor, na.last = FALSE)
+```
+
+
+```{r}
+ggplot(pinguinos, aes(especie)) +
+  geom_bar()
+```
+
+```{r}
+library(forcats)
+pinguinos %>%  
+  mutate(especie = fct_relevel(especie, "Adelia", "Papúa", "Barbijo")) %>% 
+  ggplot(aes(especie)) +
+  geom_bar()
+```
+
+```{r}
+pinguinos %>% 
+  mutate(especie = fct_infreq(especie)) %>% 
+  ggplot(aes(especie)) +
+  geom_bar()
+```
+
+```{r}
+pinguinos %>% 
+  mutate(especie =  fct_infreq(especie)) %>%  
+  ggplot(aes(especie)) +
+  geom_bar()
+```
+
+```{r}
+ggplot(pinguinos, aes(y = fct_rev(fct_infreq(especie)))) + 
+  geom_bar()
+```
+
+
+```{r}
+datos::paises %>%  
+  filter(anio == 2007, continente == "Américas") %>% 
+  ggplot(aes(esperanza_de_vida, pais)) +
+  geom_point()
+```
+
+```{r}
+datos::paises %>%  
+  filter(anio == 2007, continente == "Américas") %>% 
+  mutate(pais = fct_reorder(pais, esperanza_de_vida, .desc = FALSE)) %>%  
+  ggplot(aes(esperanza_de_vida, pais)) +
+  geom_point()
+```
+## fct_lump
+```{r}
+ggplot(pinguinos, aes(y = fct_lump(especie, 1))) + 
+  geom_bar()
+```
+```{r}
+ggplot(pinguinos, aes(y = fct_lump(especie, 1, other_level = "Otro"))) + 
+  geom_bar()
+```
+
+```{r}
+pinguinos %>%  
+  mutate(especie = fct_lump_lowfreq(especie, other_level = "Otras especies")) %>%  
+  ggplot(aes(especie)) +
+  geom_bar()
+```
+
+

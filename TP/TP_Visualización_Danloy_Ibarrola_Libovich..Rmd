@@ -1,0 +1,223 @@
+---
+title: "Trabajo Práctico Integrador"
+author:
+- name: Danloy Anabella - Ibarrola Walter - Libovich Damián
+
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(maps)
+
+knitr::opts_chunk$set(echo = TRUE)
+
+meteoritos <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-06-11/meteorites.csv")
+
+
+```
+La base de datos `meteoritos` contiene información de impactos de meteoritos y su fuente es la NASA. Incluye información sobre más de 45.000 meteoritos, incluyendo su nombre, ubicación, masa y año de impacto. 
+
+### **Parte 1**
+
+**Pregunta:** ¿Cuál es la distribución geográfica de los meteoritos y donde cayeron los más pesados?
+
+**Introducción:** Meteoritos es una base de datos que contiene información sobre 45716 impactos de meteoritos, incluyendo su  nombre, ubicación, masa y año de impacto, registrados hasta el año 2013. Esta fuente proviene de la NASA.
+Las variables incluidas en el registro son las siguientes: 
+
+
+**Variable**    |**Clase **    |**Descripción **                                       |
+ |---------------|-------------|---------------------------------------------------------|
+ | name          | character   | Nombre del meteorito                                    |
+ | id            | double      | ID numérico del meteorito                               |
+ | name_type     | character   | Tipo de nombre, valid (válido) o relict (no puede ser asignado fácilmente a una clase) |
+ | class         | character   | Clase del meteorito, más detalles en Wikipedia          |
+ | mass          | double      | Masa en gramos                                         |
+ | fall          | character   | Fell (alguien vio caer el meteorito) o Found (alguien lo encontró) |
+ | year          | integer     | Año                                                    |
+ | lat           | double      | Latitud                                                |
+ | long          | double      | Longitud                                               |
+ | geolocation   | character   | Geolocalización                                        |
+
+
+
+Comenzaremos analizando la distribución geográfica de los meteoritos, para ello utilizaremos la Latitud (lat) y la Longitud (long) registradas para cada impacto. Esto nos permitirá visualizar la dispersión de impactos en los diferentes continentes de nuestro planeta. Además, realizaremos una distinción entre el tamaño de los meteoritos, utilizando la masa en gramos (mass), realizando previamente una conversión a toneladas y/o kilogramos para facilitar la interpretación y visualización de los datos.
+
+
+**Enfoque:** Con el objetivo de responder a la pregunta asignada, utilizamos un gráfico de polígonos del mapa del mundo, ya que esto nos permite visualizar la distribución geográfica solicitada. Además, agregamos una geometría de puntos que mapea la masa de los meteoritos a la escala de tamaño y color de los puntos. Consideramos que este gráfico refleja adecuadamente la distribución geográfica de los meteoritos, ya que muestra tanto su localización (mediante las coordenadas de latitud y longitud) como la variabilidad en su masa.
+
+En el segundo analisis seleccionamos un gráfico de barras, este nos permite observar con facilidad la cantidad de meteoritos y peso promedio caidos en cada continente. Ademas, consideramos meteoritos mayores a 50 kg para filtrar los más relevantes.
+
+**Analisis:**
+
+```{r message = FALSE, warning = FALSE}
+
+world_map <- map_data("world")
+
+meteoritos <- meteoritos %>%
+  mutate(continent = case_when(
+  lat < -60 ~ "Antártida",
+  lat >= -60 & lat < 15 & long >= -90 & long < -30 ~ "América",  # América del Sur
+  lat >= 15 & lat <= 72 & long >= -170 & long <= -30 ~ "América",  # América del Norte
+  lat >= -35 & lat < 37 & long >= -20 & long <= 55 ~ "África", 
+  lat >= 30 & lat < 71 & long >= -30 & long < 40 ~ "Europa", 
+  lat >= -50 & lat <= 0 & long >= 110 & long <= 180 ~ "Oceanía",  
+  lat >= 0 & lat <= 90 & long >= 40 & long <= 180 ~ "Asia"  
+  ))
+
+meteoritos_filtrados <- meteoritos %>%
+  filter(!is.na(lat), !is.na(long), !is.na(mass), !is.na(continent) )
+
+```
+
+
+```{r message = FALSE, warning = FALSE, fig.width = 10, fig.height = 6}
+
+ggplot() +
+  geom_polygon(data = world_map, aes(x = long, y = lat, group = group), fill = "gray90", color = "white") +
+  geom_point(data = meteoritos_filtrados, aes(x = long, y = lat, size = mass / 1e6, color = mass / 1e6), alpha = 0.7) +
+  scale_size_continuous(range = c(1, 10), name = "Masa (toneladas)") +
+  scale_color_viridis_c(option = "C", name = "Masa (toneladas)") +
+  labs(title = "Distribución geográfica de los meteoritos", 
+       x = "Longitud", 
+       y = "Latitud") +
+  xlim(-180, 180) +
+  ylim(-90, 90) +
+  theme_minimal()
+
+```
+
+```{r message = FALSE, warning = FALSE, fig.width = 10, fig.height = 6}
+
+meteoritos_filtrados_por_peso <- meteoritos_filtrados %>%
+  filter(mass > 50000)
+
+datos_agregados <- meteoritos_filtrados_por_peso %>%
+  group_by(continent) %>%
+  summarise(cantidad = n(), peso_promedio = mean(mass, na.rm = TRUE))
+
+ggplot(datos_agregados, aes(x = continent, y = cantidad, fill = continent)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_line(aes(y = peso_promedio / 1000), color = "black", size = 4) + 
+  geom_text(aes(y = cantidad + 10, label = paste0(round(peso_promedio / 1000, 2), " Kg")), 
+            color = "black", size = 4, vjust = 0) + 
+  scale_y_continuous(
+    name = "Cantidad de Meteoritos", 
+    limits = c(0, 220),
+    sec.axis = sec_axis(~ ., name = "Peso Promedio")
+  ) +
+  labs(title = "Cantidad y Peso Promedio de Meteoritos por Continente",
+       x = "Continente", 
+       y = "Cantidad de Meteoritos", 
+       fill = "Continente",
+       caption = "Nota: Solo se incluyeron meteoritos con un peso superior a 50 kg.") +
+  theme_minimal() +
+  theme(plot.caption = element_text(size = 10))
+
+
+```
+
+**Discusión:** La cantidad de meteoritos y su peso varían entre los continentes. Algunos continentes, como América y Asia, tienen una mayor cantidad de meteoritos registrados en comparación con otros. Esto puede explicarse por las diferentes inversiones tecnológicas y científicas de los países, ademas de la clara diferencia de tamaño y superficie entre ellos. Otro factor a tener en cuenta son las condiciones geográficas y climáticas.
+Se observa sobre todo en el segundo gráfico que los meteoritos de mayor tamaño cayeron en Africa, Asia y America. Siendo en este último donde mayor cantidad hay (alrededor de 200 meteorites).
+
+
+### **Parte 2**
+
+**Pregunta:** ¿La clase tienen alguna distribución temporal?
+
+**Introducción:** Para la segunda sección, se buscará observar cómo fue la distribución de las distintas clases a lo largo de los años. Para ello, utilizaremos la variable "clase de meteorito" (class). Esta variable agrupa a los meteoritos en 455 clases diferentes. Se tomará como referencia la clasificación de meteoritos proporcionada por Wikipedia (https://en.wikipedia.org/wiki/Meteorite_classification) para realizar una agrupación menor. De esta manera, se obtendrán 4 nuevos grupos: “Rocosos” (stony), “Hierro-Piedra” (Stony-Iron ), “Hierro” (iron) y “Desconocido" (Unknown). Estos grupos se asignarán a una nueva variable llamada class_grup (grupo de clase).
+
+Además, se utilizará la variable "años" (year) con el objetivo de analizar la distribución temporal. Se considerará el lapso de tiempo desde 1900 hasta 2013, ya que este periodo refleja con mayor precisión los avances en la detección y clasificación de meteoritos, gracias al desarrollo de tecnologías y registros más sistemáticos. Asimismo, se excluirá el registro 30684 con fecha 2101, ya que representa un suceso que aún no ha ocurrido.
+
+**Enfoque:** Para responder a la pregunta estipulada, decidimos utilizar un gráfico de líneas. En este gráfico, se representa la cantidad acumulada de meteoritos a lo largo de los años, diferenciando los 4 grupos con colores distintos. Para brindar mayor claridad visual, se optó por separar cada grupo en un gráfico diferente, respetando el mismo período de tiempo y la misma escala en la cantidad de impactos de meteoritos.
+Además, incluimos un segundo gráfico de densidad, en donde se ven las diferentes tendencias de cada clase distinguidas también por colores. En este gráfico no se observa la acumulación total, sino que se pone el foco en los años y en cómo se distribuyen los impactos dentro de cada grupo. Esto permite identificar períodos con mayor actividad relativa de impactos, así como analizar si ciertas clases de meteoritos son más comunes en algunos años específicos. De esta manera, el gráfico de densidad complementa al de líneas, proporcionando una perspectiva relativa en lugar de absoluta.
+
+
+**Analisis:**
+```{r message = FALSE, warning = FALSE, fig.width = 10, fig.height = 6}
+meteoritos_class_group <- meteoritos %>%
+  mutate(class_group = case_when(
+    grepl("chondrite|^C|^CO|^CV|^CK|^CR|^CH|^CB|^CM|^H|^L|^LL|^L/LL|^EH|^EL|^R|^K|Acapulcoite|Lodranite|
+      Winonaite|Howardite|Eucrite|Diogenite|Angrite|Aubrite|Ureilite|Brachinite|^Lunar|^Martian", 
+      meteoritos$class, ignore.case = TRUE) ~ "Stony (Rocosos)",
+    grepl("Pallasite|Mesosiderite", meteoritos$class, ignore.case = TRUE) ~ "Stony-Iron (Hierro-Piedra)",
+    grepl("Iron", meteoritos$class, ignore.case = TRUE) ~ "Iron (Hierro) ",
+    TRUE ~ "Unknown (Desconocido)"
+  ))
+
+conteo_meteoritos <- meteoritos_class_group %>%
+  group_by(class_group) %>%
+  summarise(conteo = n())
+
+```
+
+
+
+```{r message = FALSE, warning = FALSE, fig.width = 10, fig.height = 6}
+
+periodo <- meteoritos_class_group %>%
+  filter(!is.na(year)) %>%
+  filter(year >= 1900, year <= 2015) %>%
+  group_by(year, class_group) %>% 
+  summarize(conteo = n(), .groups = "drop")
+
+
+ggplot(periodo, aes( year, conteo)) +
+  geom_line(aes(color = class_group)) +
+  labs(
+    title = "Distribución temporal de impactos de meteoritos por grupo de clase",
+    x = "Año de impacto", 
+    y = "Cantidad de impactos",
+    color = "Grupo de Clase:",
+   ) +
+   facet_wrap(~class_group, scales = "fixed") +  
+   scale_y_continuous(limits = c(0, 3000),
+                 	breaks = seq(0, 3000, 1000),
+                 	expand = c(0, 10)) +
+   theme_minimal()+
+   theme(
+        legend.position = "bottom",
+        legend.text = element_text(size = 10, color = "black"),
+        plot.title = element_text(face = "bold", size = 14),
+        plot.caption = element_text(hjust = 0.5)) +
+    guides(caption = guide_legend(ncol = 2, byrow = TRUE))
+
+```
+```{r message = FALSE, warning = FALSE, fig.width = 10, fig.height = 6}
+periodo <- meteoritos_class_group %>%
+  filter(!is.na(year)) %>%
+  filter(year >= 1900, year <= 2015)
+
+ggplot(periodo, aes(x = year, fill = class_group, color = class_group)) +
+  geom_density(alpha = 0.6, bw = 1, color = "black", size = 1) +
+  labs(
+    title = "Distribución temporal de impactos de meteoritos por grupo de clase",
+    x = "Año de impacto", 
+    y = "Densidad",
+    fill = "Grupo de Clase",
+    color = "Grupo de Clase",
+    caption = "Fuente: Meteorite Landings Dataset de la NASA, disponibles en el repositorio TidyTuesday (2019).",
+  ) +
+  scale_x_continuous(breaks = seq(1900, 2013, by = 10), limits = c(1900, 2013)) +
+  theme_minimal()+
+  theme(
+        legend.position = "bottom",
+        legend.text = element_text(size = 10, color = "black"),
+        plot.title = element_text(face = "bold", size = 14),
+        plot.caption = element_text(hjust = 0.5)) +
+    guides(caption = guide_legend(ncol = 2, byrow = TRUE))
+
+```
+
+
+**Discusión:** Podemos observar registros de meteoritos pertenecientes a las cuatro clases durante el período 1900-2013. Se destaca la clase Rocosa por su mayor cantidad de impactos registrados, especialmente a partir de la década de 1970. Aunque esta clase muestra grandes cantidades, también presenta fluctuaciones en los años posteriores.
+
+En cuanto a los meteoritos agrupados como Desconocidos, se observa un notable aumento alrededor de 1980. Por otro lado, los meteoritos de la clase Hierro-Piedra muestran un incremento significativo en los años 2000. La clase de tipo Hierro, en cambio, presenta una distribución relativamente constante a lo largo de los años.
+
+En general, es evidente que la cantidad de registros de meteoritos ha aumentado considerablemente en las últimas décadas.
+
+
+

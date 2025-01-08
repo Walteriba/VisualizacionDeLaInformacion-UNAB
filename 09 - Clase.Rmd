@@ -1,0 +1,283 @@
+---
+title: "Clase_09"
+author: "Raul Marusca"
+date: "2024-11-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+#install.packages("tidyverse")
+#install.packages("datos")
+#install.packages("patchwork")
+#install.packages("ggforce")
+#install.packages("scales")
+
+library(tidyverse)
+library(datos)
+library(patchwork)
+library(ggforce)
+library(scales)
+
+```
+# Graficos compuestos
+Vamos a cargar los datos 
+```{r}
+pinguinos <- datos::pinguinos
+# vamos a eliminar los datos vacios PAra sacar el sexo NA
+pinguinos <- na.omit(pinguinos)
+
+pinguinos
+```
+Los graficos se pueden guardar en objetos que luego pueden ser mostrados.
+Vamos a crear algunos graficos para trabajar con ellos luego.
+Ya de entrada vamos unificando colores usando unas escalas manuales
+
+```{r}
+g1 <- ggplot(pinguinos) +
+  geom_point(aes(largo_pico_mm, largo_aleta_mm, color = sexo)) + 
+  scale_color_manual(values = c("#3d348b", "#fb8500")) + # aqui es color
+  labs(
+    x = "Largo de pico (mm)", y = "Largo de aleta (mm)"
+  )
+
+g2 <- ggplot(pinguinos) +
+  geom_boxplot(aes(largo_pico_mm, sexo, fill = sexo), alpha = 0.5) + 
+  scale_fill_manual(values = c("#3d348b", "#fb8500"))+ # aqui es fill
+  labs(
+    x = "Largo de pico (mm)",
+    y = "sexo" ) 
+
+g3 <- ggplot(pinguinos) +
+  geom_bar(aes(sexo, fill = sexo)) +
+  facet_wrap( ~ isla) +
+  scale_fill_manual(values = c("#3d348b", "#fb8500"))+ # aqui tambien es fill
+  scale_y_continuous(limits = c(0,100))  # estiramos el limite superior
+```
+Ahora los vamos a ver
+```{r}
+g1
+```
+```{r}
+g2
+```
+```{r}
+g3
+```
+
+Con  la libreria patchwork podemos unirlos en un solo grafico.
+Si queremos ponerlo uno al lado del otro
+```{r}
+g1 | g2
+```
+Y si queremos ponerlo uno encima del otro
+```{r}
+g1 / g2
+```
+Podemos hacer estructuras mas complicadas
+```{r}
+(g1|g2)/g3
+```
+Como hay muchas leyendas, las vamos a eliminar en algunos graficos
+```{r}
+g1 <- ggplot(pinguinos) +
+  geom_point(aes(largo_pico_mm, largo_aleta_mm, color = sexo)) + 
+  scale_color_manual(values = c("#3d348b", "#fb8500")) + # aqui es color
+  labs(
+    x = "Largo de pico (mm)", y = "Largo de aleta (mm)"
+  )
+
+g2 <- ggplot(pinguinos) +
+  geom_boxplot(aes(largo_pico_mm, sexo, fill = sexo), alpha = 0.5) + 
+  scale_fill_manual(values = c("#3d348b", "#fb8500"))+ # aqui es fill
+  labs(
+    x = "Largo de pico (mm)",
+    y = "sexo" ) +
+  theme(legend.position = "none")
+
+g3 <- ggplot(pinguinos) +
+  geom_bar(aes(sexo, fill = sexo)) +
+  facet_wrap( ~ isla) +
+  scale_fill_manual(values = c("#3d348b", "#fb8500"))+ # aqui tambien es fill
+  scale_y_continuous(limits = c(0,100)) + # estiramos el limite superior
+  theme(legend.position = "none")
+```
+Ahora queda un poco mejor
+```{r}
+(g1|g2)/g3
+```
+Podemos cambiar el orden
+```{r}
+
+g1/(g2|g3)
+
+```
+Podemos hacer algunas annotations sobre el gráfico combinado (como si fuera una capa adicional)
+```{r}
+(g1 | g2) /g3 +
+  plot_annotation(
+    tag_levels = "A",
+    title = "Muestras de pinguinos",
+    subtitle = "Evaludas segun sexo",
+    caption = "Fuente: Paquete datos"
+  )
+```
+Existe otro paquete para hacer graficos compuestos, cowplot
+
+
+# Guardar imagenes
+```{r}
+pinguinos %>% ggplot(aes(largo_aleta_mm, masa_corporal_g)) +
+  geom_point(
+    aes(colour = especie, shape = especie),
+    size = 3,
+    alpha = 0.8
+  ) +
+  ggforce::geom_mark_ellipse(  # esta es otra capa de anotaciones
+    aes(filter = especie == "Papúa",
+        description = "La especie Papúa es de mayor tamaño")
+  ) +
+  labs(x = "Largo de la aleta",
+       y = "Peso",
+       colour = "Especie",
+       shape = "Especie")
+```
+Guardamos la imagen en formato raster (png) (Se ven los pixeles)
+```{r}
+ggsave("images/grafico_01_base.png", 
+       width = 20, 
+       height = 12, 
+       units = "cm", 
+       dpi = 300
+       )
+```
+Y que pasa si tenemos que preparar una imagen para que sea impresa en un poster?
+Si agrandamos el tamaño
+```{r}
+ggsave("images/grafico_01_grande.png", 
+       width = 60, 
+       height = 36, 
+       units = "cm", 
+       dpi = 300
+       )
+```
+Pra solucionar los problemas de resolucion podemos usar un formato vectorial.
+En diseño grafico se usa .ia o .svg Pero los diseñadores se pueden arreglar con el pdf
+```{r}
+ggsave("images/grafico_01_grande.pdf", 
+       width = 60, 
+       height = 36, 
+       units = "cm", 
+       dpi = 300
+       )
+```
+Veamos como queda si lo dejamos con el tamaño normal (hacer zoom)
+```{r}
+ggsave("images/grafico_01_base.pdf", 
+       width = 20, 
+       height = 12, 
+       units = "cm", 
+       dpi = 300
+       )
+```
+Otra opcion es usar temas
+```{r}
+pinguinos %>% ggplot(aes(largo_aleta_mm, masa_corporal_g)) +
+  geom_point(
+    aes(colour = especie, shape = especie),
+    size = 3,
+    alpha = 0.8
+  ) +
+  ggforce::geom_mark_ellipse(  # esta es otra capa de anotaciones
+    aes(filter = especie == "Papúa",
+        description = "La especie Papúa es de mayor tamaño")
+  ) +
+  labs(x = "Largo de la aleta",
+       y = "Peso",
+       colour = "Especie",
+       shape = "Especie") +
+  theme_gray(base_size = 30) # aca aumentamos el tamaño de la letra
+```
+Y ahora lo guardamos tamaño poster pero tipo raster
+```{r}
+ggsave("images/grafico_02_grande.png", 
+       width = 60, 
+       height = 36, 
+       units = "cm", 
+       dpi = 300
+       )
+```
+Lo único que queda pequeño es el tamaño del texto de la anotación. Pero ggforce permite cambiarlo también
+```{r}
+pinguinos %>% ggplot(aes(largo_aleta_mm, masa_corporal_g)) +
+  geom_point(
+    aes(colour = especie, shape = especie),
+    size = 3,
+    alpha = 0.8
+  ) +
+  ggforce::geom_mark_ellipse(  # esta es otra capa de anotaciones
+    aes(filter = especie == "Papúa",
+        description = "La especie Papúa es de mayor tamaño"),
+    label.fontsize = 40
+  ) +
+  labs(x = "Largo de la aleta",
+       y = "Peso",
+       colour = "Especie",
+       shape = "Especie") +
+  theme_gray(base_size = 30) # aca aumentamos el tamaño de la letra
+```
+Y ahora lo guardamos tamaño poster pero tipo raster
+```{r}
+ggsave("images/grafico_03_grande.png", 
+       width = 60, 
+       height = 36, 
+       units = "cm", 
+       dpi = 300
+       )
+```
+La otra opcion es escalar todo a pixeles.
+Nos obliga a pensar todo en pixeles...
+
+Rehago el grafico
+```{r}
+pinguinos %>% ggplot(aes(largo_aleta_mm, masa_corporal_g)) +
+  geom_point(
+    aes(colour = especie, shape = especie),
+    size = 3,
+    alpha = 0.8
+  ) +
+  ggforce::geom_mark_ellipse(  # esta es otra capa de anotaciones
+    aes(filter = especie == "Papúa",
+        description = "La especie Papúa es de mayor tamaño")
+  ) +
+  labs(x = "Largo de la aleta",
+       y = "Peso",
+       colour = "Especie",
+       shape = "Especie")
+```
+```{r}
+ggsave("images/grafico_04_grande.png", 
+       width = 7100, 
+       height = 4250, 
+       units = "px", 
+       dpi = 300
+       )
+```
+Otra solucion es empleando un paquete adicional que resuelve estos problemas
+No funciona en Linux...
+```{r}
+ragg::agg_png("images/grafico_05_base.png", 
+              width = 60, 
+              height = 36, 
+              units = "cm", 
+              res = 300, 
+              scaling = 3)
+
+plot(p)
+invisible(dev.off())
+```
+

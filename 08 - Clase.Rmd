@@ -1,0 +1,313 @@
+---
+title: "Clase_08.Rmd"
+author: "Raul Marusca"
+date: ""
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+#install.packages("tidyverse")
+#install.packages("datos")
+#install.packages("remotes")
+#install.packages("conflicted") # para identificar conflictos de nombres entre paquetes
+#install.packages("maps")
+#install.packages("sf")
+#install.packages("rnaturalearth")
+#install.packages("metR") 
+#install.packages("ggnewscale") 
+#install.packages("ncdf4")
+#install.packages("udunits2") 
+#install.packages("PCICt")
+#install.packages("raster") 
+#install.packages("proj4")
+#install.packages("kriging")
+#install.packages(c("rnaturalearthhires", "rnaturalearthdata"), repos = "https://ropensci.r-universe.dev", type = "source")
+
+library(tidyverse)
+library(conflicted)
+library(maps)
+library(datos)
+library(sf)
+library(rnaturalearth)
+library(metR)
+
+```
+# Graficando mapas
+
+## Mapas sencillo 
+De los mapas que podemos encontrar en la librería maps (map_data) extraemos los limites de Argentina CONTINENTAL
+
+```{r}
+argentina <- map_data("world", "argentina") %>% 
+  select(lon = long, lat)
+head(argentina)
+```
+Son muchos puntos...
+
+### Mapa de puntos
+Recuerden que como entidad estatal argentina tenemos la obligación de incluir a las islas Malvinas como parte de nuestro país.
+Ojo con los mapas donde no aparece el nombre correcto!!! 
+Si no las podemos dibujar tiene que quedar aclarado que hablamos de la parte CONTINENTAL de Argentina.
+
+```{r}
+argentina %>% ggplot(aes(lon, lat)) +
+  geom_point(size = 0.25, show.legend = FALSE) 
+```
+Esto se ve así, porque tiene las mismas dimensiones en x e y y porque no tiene en cuenta la deformacion esferica del planeta.
+
+### Mapa de puntos proyectado
+Hay una capa que nos provee de una proyección geográfica, así lo podemos ver en una forma mas natural
+```{r}
+argentina %>% ggplot(aes(lon, lat)) +
+  geom_point(size = 0.25, show.legend = FALSE) +
+  coord_quickmap()
+```
+
+### Mapa de poligonos
+Pero esto es una representación de los puntos donde hay un cambio, podemos usar un geom que entiende a los puntos como extremos de un polígono y los une con lineas
+```{r}
+argentina %>% ggplot(aes(lon, lat)) +
+  geom_polygon() +
+  coord_quickmap()
+```
+### Poligonos con relleno
+Como es un polígono muy complejo puede ser que se confundan puntos extremos de lineas.
+El orden en el que aparecen los puntos es importante, quizás en este dataset salta de un punto en Bahia Blanca a Salta y de ahí a Tierra del Fuego 
+Lo intentamos solucionar con un relleno (Plot twist, no va a funcionar)
+
+```{r}
+argentina %>% ggplot(aes(lon, lat)) +
+  geom_polygon(fill = "white", colour = "grey50") +
+  coord_quickmap()
+```
+## Formatos especificos para datos geograficos
+El problema sigue estando en el formato usado para la representación. Es por eso que profesionalmente se emplean otros formatos.
+El mas utilizado en GIS es el shapefile, que en realidad se compone de varios archivos.
+Pero existen otras representaciones como los formatos propietarios de AutoCad, las extensiones geográficas de Pandas y de SQL o el GEOJson.
+Todas estas variantes suelen tener una codificación "plana" que puede venir en un archivo de texto separado por comas.
+Aunque también existen los formatos puramente binarios
+
+La librería rnaturalearth es una colección de archivos shapefile con información de alta resolución de la superficie del planeta.
+
+## Libreria sf (simple features)
+Vamos a usar rnaturalearth junto con la librería sf  que entiende todos esos formatos geográficos y tambien ya realiza la corrección de la proyección.
+
+### Mapa de Argentina
+```{r}
+library(rnaturalearth) # Cargamos la libreria
+
+mapa <- ne_countries(type = "countries", country = "Argentina", returnclass = "sf")
+
+mapa %>% ggplot() +
+  geom_sf() # Geom agregado por sf para graficar informacion geografica
+```
+### Incluyendo las Malvinas
+Vamos a ponerle mas detalle (eso viene en el dataset)
+```{r}
+
+mapa_arg <- ne_countries(type = "countries", 
+                     country = c("Argentina", "falkland islands"), # y le agregamos las Malvinas ()
+                     returnclass = "sf",
+                     scale = "large") # aca agregamos mas datos (ojo con las librerias descargadas)
+
+mapa_arg %>% ggplot() +
+  geom_sf()
+```
+### incluyendo otros paises
+Podemos ir agregando paises
+```{r}
+
+mapa <- ne_countries(type = "countries", 
+                     country = c("Argentina", 
+                                 "falkland islands", 
+                                 "Uruguay", 
+                                 "Paraguay", 
+                                 "Bolivia", 
+                                 "Chile",
+                                 "Brazil"), 
+                     returnclass = "sf",
+                     scale = "large") # aca agregamos mas datos (ojo con las librerias descargadas)
+
+mapa %>% ggplot() +
+  geom_sf()
+```
+### Mapa con las provincias continentales
+O para ver las provincias continentales. Se usa ne_states() que tiene menos opciones que ne_countries y solo viene en alta resolucion.
+```{r}
+
+mapa_prov <- ne_states(country = "Argentina", 
+                     returnclass = "sf") 
+mapa_prov %>% ggplot() +
+  geom_sf()
+```
+### El objeto mapa
+Veamos un resume del objeto mapa_arg (que tenia a las Malvinas)
+```{r}
+mapa_arg
+```
+Lo que subio Lucas Echevarria Para sumar las otras islas
+Con una proyeccion distinta
+```{r}
+# Obtener datos
+argentina <- ne_countries(scale = 10, country = "Argentina", returnclass = "sf")
+islas <- ne_countries(scale = 10, country = c("Falkland Islands", "South Georgia and the South Sandwich Islands"), returnclass = "sf")
+
+mapa_le <- rbind(argentina, islas)
+
+ggplot(data = mapa_le) +
+  geom_sf(aes(fill = admin), color = NA, show.legend = FALSE) +
+  coord_sf(crs = "+proj=moll") +
+  scale_fill_brewer(palette = "Set1") +
+  labs(title = "Argentina y las Islas del Atlántico Sur")
+```
+
+PAUSA
+##############################################################################################################
+Ver joins en la presentación
+
+##############################################################################################################
+## Combinando datos con mapas
+### Observaciones meteorologicas
+Para incorporar algun dato al mapa, vamos a conseguir un archivo con las observaciones del servicio meteorologico nacional en formato csv 
+```{r}
+observaciones <- readr::read_csv("https://raw.githubusercontent.com/eliocamp/r-clima/refs/heads/master/datos/observaciones_smn.csv")
+observaciones
+```
+Vamos a agrupar los datos meteorologicos por estacion y vamos a calcular el promedio de los valores de cada una de ellas
+```{r}
+observaciones <- observaciones %>% 
+  group_by(station) %>% 
+  summarise(tmax_media = mean(tmax, na.rm = TRUE)) 
+observaciones
+```
+### Coordenadas de las estaciones
+Y ahora, conseguimos las posiciones geograficas de esas estaciones meteorologicas
+```{r}
+estaciones <- readr::read_csv("https://raw.githubusercontent.com/eliocamp/r-clima/refs/heads/master/datos/estaciones_smn.csv") 
+estaciones
+```
+### Crear el dataset completo
+Ya tenemos las dos tablas: observaciones como tabla izquierda (left) y estaciones como tabla derecha(right)
+Vamos a unirlas con un left_join (priorizamos la tabla left y dejamos en NaN los valores faltantes de la derecha)
+Y vamos a desechar los datos de la Antartida
+```{r}
+datos <- left_join(observaciones, estaciones, by = c("station" = "nombre"))%>% 
+  dplyr::filter(provincia != "ANTARTIDA")
+```
+### Mapeando el dataset
+Bueno, al fin, vamos a hacer el mapa (Y nos va a dar un error)
+
+```{r}
+datos %>% ggplot(aes(x = lon, y = lat)) +
+  geom_point() + # capa de puntos con las estaciones
+  geom_sf(data = mapa_arg) # capa del mapa
+```
+El aes de ggplot se pasa a todos los geoms que siguen, pero mapa_arg no tiene  los campos lon y lat
+Para eso ggplot tiene un switch que permite que un geom no "herede" de la estructura base
+
+
+```{r}
+datos %>% ggplot(aes(x = lon, y = lat)) +
+  geom_point() +
+  geom_sf(data = mapa_arg, inherit.aes = FALSE)
+```
+El orden de las capas importa. El geom_sf *tapa* a geom_point
+
+Hacemos el mapa transparente para que no nos oculte los puntos del geom_point
+```{r}
+datos %>% ggplot(aes(x = lon, y = lat)) +
+  geom_point() +
+  geom_sf(data = mapa_arg, inherit.aes = FALSE, fill = NA)
+```
+Ahora podriamos poner la info de la temperatura.
+```{r}
+datos %>% ggplot(aes(x = lon, y = lat)) +
+  geom_point(aes(colour = tmax_media)) +
+  geom_sf(data = mapa_arg, inherit.aes = FALSE, fill = NA)
+```
+PAUSA
+
+##############################################################################################################
+## Interpolando
+Vamos a mejorar ese grafico haciendo una interpolacion de los datos que tenemos (irregulares) 
+Si bien hay formas de hacer eso manipulando datos o usando varias opciones de escala de ggplot, el método mas inteligente es usar el trabajo de otra persona que ya creo un geom especifico para representar esos gradiente
+
+Primero carguemos la librería que tiene esas funciones (BTW; esa librería fue escrita y es mantenida por un argentino, Elio Campos)
+
+```{r}
+library(metR)
+
+```
+Hagamos el mapa
+```{r}
+datos %>% ggplot(aes(x = lon, y = lat)) +
+  metR::geom_contour_fill(aes(z= tmax_media), kriging = TRUE) 
+```
+Como corresponde, hay escalas para el relleno que podemos usar para cambiar los colores
+```{r}
+datos %>% ggplot(aes(x = lon, y = lat)) +
+  metR::geom_contour_fill(aes(z= tmax_media), kriging = TRUE) +
+    scale_fill_viridis_c()
+
+```
+Notemos que aqui pasa lo mismo que al principio: es un cuadrado y no esta toamda en cuenta la deformacion esferica.
+La libreria sf corrige esos defectos
+
+Sumamos el mapa con el geom_sf
+
+```{r}
+datos %>% ggplot(aes(x = lon, y = lat)) +
+  metR::geom_contour_fill(aes(z= tmax_media), kriging = TRUE) +
+  geom_sf(data = mapa_arg, inherit.aes = FALSE, fill = NA)
+```
+Le agregamos los puntos con la temperatura (informacion totalmente innecesaria y que distrae pero que sirve para ver como agruegar mas capas a nuestro mapa)
+```{r}
+datos %>% ggplot(aes(x = lon, y = lat)) +
+  metR::geom_contour_fill(aes(z= tmax_media), kriging = TRUE) +
+  geom_sf(data = mapa_arg, inherit.aes = FALSE, fill = NA) +
+  geom_point(aes(color = tmax_media), show.legend = FALSE) +
+  scale_color_viridis_c()
+```
+El geom_sf con el kriging se renderiza en un rectangulo aproximado a los puntos de las muestras. Se le puede especificar al algoritmo un poligono en el cual debe realizar este render.
+Pero ese parámetro se pasa como una lista, asi que hay que manipular mucho el dataset del mapa de Argentina.
+A este proceso se lo llama clipping
+
+### Cloropletos
+Nos falta ver como hacer los cloropletos
+
+Primero tenemos que crear una tabla donde tengamos las temperaturas medias por provincia
+```{r}
+media_prov <- observaciones %>% group_by(provincia) %>% 
+  summarise(tmax_prov = mean(tmax_media, na.rm = TRUE))
+
+```
+Y vamos a usar el mapa de las provincias continentales
+```{r}
+mapa_prov
+```
+Para hacer el join necesitamos el nombre de las provincias en el mismo formato
+Veamos los distintos valores de la columna gns_name
+```{r}
+mapa_prov %>% distinct(gns_name)
+```
+
+En mapa_prov tenemos el campo gns_name Que esta en MAYUSCULAS y que tiene un nombre muy largo para Tierra del Fuego
+
+```{r}
+mapa_prov <- mapa_prov %>% mutate(gns_name = toupper(gns_name),
+                                  gns_name = if_else(gns_name == "TIERRA DEL FUEGO, ANTARTIDA E ISLAS DEL ATLANTICO SUR, TERRITORIO NACIONAL DE LA", "TIERRA DEL FUEGO", gns_name))
+```
+Y ahora si, podemos hacer el join
+```{r}
+combinado_2 <- left_join(media_prov, mapa_prov, by = c("provincia" = "gns_name"))
+```
+Y ahora graficamos
+```{r}
+combinado_2 %>% ggplot() +
+  geom_sf(aes(geometry = geometry, fill = tmax_media_prov))
+```

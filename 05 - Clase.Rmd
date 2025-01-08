@@ -1,0 +1,267 @@
+---
+title: "Distribución"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+library(ggplot2)
+library(dplyr)
+library(datos) 
+```
+
+
+Vamos a trabajar con la base de datos de pingüinos del paquete {datos}. Si no lo tenes instalado podes hacerlo corriendo en la consola `install.packages("datos")`
+
+Si quieren conocer más sobre estos datos pueden revisar la página (en inglés) https://allisonhorst.github.io/palmerpenguins/index.html
+
+Veamos que pinta tienen los datos
+
+```{r}
+pinguinos
+```
+# Distribuciones
+## BoxPlot
+Vamos a hacer un boxplot con el peso de los pinguinos sin distinguir especies
+```{r}
+ggplot(pinguinos, aes(x = masa_corporal_g)) +
+  geom_boxplot() +
+  labs(title = "Distribución de masa corporal de pingüinos") 
+```
+Ahora vamos a diferenciar por especie
+
+```{r}
+ggplot(pinguinos, aes(x = especie, y = masa_corporal_g)) +
+  geom_boxplot() +
+  labs(title = "Distribución de masa corporal por especie de pingüino",
+       x = "Especie",
+       y = "Masa corporal (g)") 
+  
+```
+## histogramas
+Tambien podemos graficar histogramas, veamos ahora la distribucion de los pesos de todos los pinguinos
+```{r}
+pinguinos %>% ggplot(aes(masa_corporal_g)) + 
+  geom_histogram(binwidth = 200) +
+  labs(titulo = "Distribución de masa corporal de todos los pingüinos", 
+       x = "Masa corporal (g)",
+       y = "Frecuencia")
+```
+Reduzcamos el ancho de los bins
+```{r}
+pinguinos %>% ggplot(aes(masa_corporal_g)) + 
+  geom_histogram(binwidth = 100) +
+  labs(titulo = "Distribución de masa corporal de todos los pingüinos", 
+       x = "Masa corporal (g)",
+       y = "Frecuencia")
+```
+Reduzcamos el numero de bins
+```{r}
+pinguinos %>% ggplot(aes(masa_corporal_g)) + 
+  geom_histogram(bins = 6) +
+  labs(titulo = "Distribución de masa corporal de todos los pingüinos", 
+       x = "Masa corporal (g)",
+       y = "Frecuencia")
+
+
+```
+Trataremos de ver como se pueden diferenciar las especies en el histograma
+```{r}
+pinguinos %>% ggplot(aes(x = masa_corporal_g, fill = especie)) + 
+  geom_histogram(binwidth = 200, position = "stack", color = "black") +
+  labs(titulo = "Distribución de masa corporal separado por especie", 
+       x = "Masa corporal (g)",
+       y = "Frecuencia")
+```
+No queda muy claro, podemos intentar mejorarlo con otros valores de position
+```{r}
+pinguinos %>% ggplot(aes(x = masa_corporal_g, fill = especie)) + 
+  geom_histogram(binwidth = 200, position = "dodge", color = "black") +
+  labs(titulo = "Distribución de masa corporal separado por especie", 
+       x = "Masa corporal (g)",
+       y = "Frecuencia")
+```
+Con identity, tenemos que aplicar alguna transparencia
+```{r}
+pinguinos %>% ggplot(aes(x = masa_corporal_g, fill = especie)) + 
+  geom_histogram(binwidth = 200, position = "identity", color = "black", alpha = 0.5) +
+  labs(titulo = "Distribución de masa corporal separado por especie", 
+       x = "Masa corporal (g)",
+       y = "Frecuencia")
+```
+## Diagramas de densidad
+```{r}
+pinguinos %>% ggplot( aes(x = masa_corporal_g)) +
+  geom_density(fill = "skyblue", alpha = 0.7 ) +
+  labs(title = "Densidad de masa corporal de todos los pingüinos",
+       x = "Masa corporal (g)",
+       y = "Densidad")
+```
+Intentemos apilar las distribuciones de densidad de las tres especies
+```{r}
+pinguinos %>% ggplot(aes(x = masa_corporal_g, fill = especie)) +
+  geom_density(alpha = 0.7, position = "stack") +
+  labs(title = "Densidad de masa corporal por especie de pingüino",
+       x = "Masa corporal (g)",
+       y = "Densidad",
+       fill = "Especie")
+```
+
+Intentemos con otras opciones de position
+```{r}
+pinguinos %>% ggplot(aes(x = masa_corporal_g, fill = especie)) +
+  geom_density(alpha = 0.7, position = "dodge") +
+  labs(title = "Densidad de masa corporal por especie de pingüino",
+       x = "Masa corporal (g)",
+       y = "Densidad",
+       fill = "Especie")
+```
+En este caso dodge e identity se ven igual
+```{r}
+pinguinos %>% ggplot(aes(x = masa_corporal_g, fill = especie)) +
+  geom_density(alpha = 0.7, position = "identity") +
+  labs(title = "Densidad de masa corporal por especie de pingüino",
+       x = "Masa corporal (g)",
+       y = "Densidad",
+       fill = "Especie")
+```
+## Violin
+Una combinacion de boxplot e histograma se puede lograr con los diagramas de tipo violin
+```{r}
+pinguinos %>% ggplot(aes(x = especie, y = masa_corporal_g, fill = especie)) +
+  geom_violin(trim = FALSE) 
+```
+Le podemos sumar los boxplot en el mismo grafico
+
+```{r}
+pinguinos %>% ggplot(aes(x = especie, y = masa_corporal_g, fill = especie)) +
+  geom_violin(trim = FALSE) +
+  geom_boxplot(width = 0.1, fill = "white", color = "black") +
+  labs(title = "Distribución de masa corporal por especie de pingüino",
+       x = "Especie",
+       y = "Masa corporal (g)") 
+```
+## Ridges
+Para esto, necesitaremos cargar una nueva libreria ya que ggplot no lo incorpora (aun)
+```{r}
+#install.packages("ggridges")
+library(ggridges)
+```
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+pinguinos %>% ggplot(aes(x = masa_corporal_g, y = especie, fill = especie)) +
+  geom_density_ridges(
+    scale = 2, # Escala del dibujo
+    rel_min_height = 0.01, # Cuando cortamos la linea
+    alpha = 0.6,  # la transparencia
+    quantile_lines = TRUE, # si dibuja los datos estadisticos
+    quantiles = 4 # Cuantos datos estadisticos dibuja
+  ) +
+  labs(
+    title = "Distribución de masa corporal por especie de pingüino",
+    x = "Masa corporal (g)",
+    y = "Especie"
+  ) 
+```
+# Relaciones
+## Puntos
+```{r}
+pinguinos %>%  ggplot(aes(x = largo_pico_mm, y = largo_aleta_mm)) + 
+  geom_point()
+```
+Graficando tres variables
+```{r}
+pinguinos %>%  ggplot(aes(x = largo_pico_mm, y = largo_aleta_mm)) + 
+  geom_point(aes(color = especie))
+
+```
+Graficando cuatro variables
+```{r}
+pinguinos %>%  ggplot(aes(x = largo_pico_mm, y = largo_aleta_mm)) + 
+  geom_point(aes(color = especie, shape = sexo), size = 3)
+
+```
+# Overplotting
+Mejorando la visibilidad de los graficos.
+Ocurre que muchos datos se sobre-escriben y entonces perdemos idea de lo que realmente esta pasando en alguna region del grafico
+
+## Reduciendo el tamaño de los puntos
+```{r}
+pinguinos %>%  ggplot(aes(x = largo_pico_mm, y = largo_aleta_mm)) + 
+  geom_point(aes(color = especie), size = 1)
+
+```
+## Agregando transparencia
+```{r}
+pinguinos %>%  ggplot(aes(x = largo_pico_mm, y = largo_aleta_mm)) + 
+  geom_point(aes(color = especie), alpha = 0.4)
+
+```
+## Cambiando la forma de los puntos
+```{r}
+pinguinos %>%  ggplot(aes(x = largo_pico_mm, y = largo_aleta_mm)) + 
+  geom_point(aes(color = especie), shape = 21 )
+
+```
+## Agregando un "ruido" que difumina la información para que no se sobreescriban datos
+```{r}
+pinguinos %>%  ggplot(aes(x = largo_pico_mm, y = largo_aleta_mm)) + 
+  geom_point(aes(color = especie) 
+             , position= "jitter")
+```
+## geom_bin2d
+Es una rejilla rectangular que cambia de color segun en esa area caigan mas o menos individuos
+```{r}
+pinguinos %>% ggplot(aes(x = largo_pico_mm, y = largo_aleta_mm)) +
+  geom_bin2d(bins = 20) +
+  scale_fill_viridis_c() + # ya lo vamos a ver, es para los colores
+  labs(
+    title = "Relación entre longitud del pico y longitud de la aleta",
+    x = "Longitud del pico (mm)",
+    y = "Longitud de la aleta (mm)",
+    fill = "Conteo"
+  ) 
+```
+## geom_hex()
+Ahora el area es hexagonal
+```{r}
+pinguinos %>% ggplot(aes(x = largo_pico_mm, y = largo_aleta_mm)) +
+  geom_hex(bins = 20) +
+  scale_fill_viridis_c() +
+  labs(
+    title = "Relación entre longitud del pico y longitud de la aleta",
+    x = "Longitud del pico (mm)",
+    y = "Longitud de la aleta (mm)",
+    fill = "Conteo"
+  ) 
+```
+
+
+
+
+# Paneles
+## facet_wrap
+Agrega una variable mas
+```{r}
+pinguinos %>%  ggplot(aes(x = largo_pico_mm, y = largo_aleta_mm)) + 
+  geom_point(aes(color = especie)) +
+  facet_wrap(~sexo)
+```
+Sumamos un dato que se "junta" al que teniamos antes
+```{r}
+pinguinos %>%  ggplot(aes(x = largo_pico_mm, y = largo_aleta_mm)) + 
+  geom_point(aes(color = especie)) +
+  facet_wrap(~sexo + isla)
+```
+
+
+
+## facet_grid
+Agrega dos variables mas
+```{r}
+pinguinos %>%  ggplot(aes(x = largo_pico_mm, y = largo_aleta_mm)) + 
+  geom_point(aes(color = especie)) +
+  facet_grid(~sexo ~ isla)

@@ -1,0 +1,336 @@
+---
+title: "Clase07.Rmd"
+author: "Raul Marusca"
+date: "2024-10-21"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+#install.packages("remotes")
+#install.packages("viridis")
+#install.packages("ggthemes")
+
+#remotes::install_github("clauswilke/colorblindr")
+
+library(tidyverse)
+library(conflicted)
+library(viridis)
+library(datos)
+```
+
+
+```{r}
+paises <- datos::paises
+diamantes <- datos::diamantes
+
+
+```
+Tenemos nuestro gráfico original
+```{r}
+ggplot(paises, aes(pib_per_capita, esperanza_de_vida)) +
+  geom_point(aes(color = continente)) +
+  scale_x_log10() 
+
+```
+Vamos a cambiarle un poco el color usando la escala Viridis
+```{r}
+paises %>% ggplot(aes(x = pib_per_capita, y = esperanza_de_vida, color = continente)) +
+  geom_point(alpha = 0.6, size = 3) +
+  scale_x_log10(labels = scales::comma) +
+  scale_color_viridis_d(option = "volcano") + # _d por DISCRETA
+  labs(
+    title = "PIB per cápita vs Esperanza de vida",
+    x = "PIB per cápita (escala log)",
+    y = "Esperanza de vida (años)",
+    color = "Continente"
+  ) 
+```
+Tenemos colorbrewer para ir cambiando la paleta http://colorbrwer2.org
+```{r}
+paises %>% ggplot(aes(x = pib_per_capita, y = esperanza_de_vida, color = continente)) +
+  geom_point(alpha = 0.6, size = 3) +
+  scale_x_log10(labels = scales::comma) +
+  scale_color_brewer(palette = "Dark2") + # 
+  labs(
+    title = "PIB per cápita vs Esperanza de vida",
+    x = "PIB per cápita (escala log)",
+    y = "Esperanza de vida (años)",
+    color = "Continente"
+  ) 
+```
+Tambien tenemos la paleta distiller para datos continuos
+```{r}
+paises %>% ggplot(aes(x = pib_per_capita, y = esperanza_de_vida, color = pib_per_capita)) + # Dato continuo
+  geom_point(alpha = 0.6, size = 3) +
+  scale_x_log10(labels = scales::comma) +
+  scale_color_distiller(palette = "Spectral") + # 
+  labs(
+    title = "PIB per cápita vs Esperanza de vida",
+    x = "PIB per cápita (escala log)",
+    y = "Esperanza de vida (años)",
+    color = "PIB per cápita(escala lineal)"
+  ) 
+```
+Con la escala fermenter podemos discretizar datos continuos
+```{r}
+paises %>% ggplot(aes(x = pib_per_capita, y = esperanza_de_vida, color = pib_per_capita)) + # Dato continuo
+  geom_point(alpha = 0.6, size = 3) +
+  scale_x_log10(labels = scales::comma) +
+  scale_color_fermenter(palette = "Spectral") + # 
+  labs(
+    title = "PIB per cápita vs Esperanza de vida",
+    x = "PIB per cápita (escala log)",
+    y = "Esperanza de vida (años)",
+    color = "PIB per cápita(escala lineal)"
+  ) 
+```
+
+Como podemos evaluar si nuestro grafico sera interpretado por personas con daltonismo?
+```{r}
+colorblindr::cvd_grid(
+ ggplot(paises, aes(pib_per_capita, esperanza_de_vida)) +
+  geom_point(aes(color = continente)) +
+  scale_x_log10() 
+)
+
+```
+Una de las escalas de color recomendada para incluir a personas con defectos de percepcion de color son las de la familia "viridis"
+```{r}
+colorblindr::cvd_grid(
+ paises %>% ggplot(aes(x = pib_per_capita, y = esperanza_de_vida, color = continente)) +
+  geom_point(alpha = 0.6, size = 3) +
+  scale_x_log10(labels = scales::comma) +
+  scale_color_viridis_d() +
+  labs(
+    title = "PIB per cápita vs Esperanza de vida",
+    x = "PIB per cápita (escala log)",
+    y = "Esperanza de vida (años)",
+    color = "Continente"
+  ) 
+)
+
+```
+```{r}
+diamantes
+```
+Y si queremos tener nuestra propia escala de colores?
+```{r}
+diamantes %>% ggplot(aes(x = corte, fill = claridad)) + 
+  geom_bar(position = "dodge")
+```
+Por defecto, ggplot usa "viridis"
+Podemos crearnos una escala de colores continua de un color a otro
+```{r}
+paleta <- colorRampPalette(c("blue", "white"))
+```
+```{r}
+diamantes %>% ggplot(aes(x = corte, fill = claridad)) + 
+  geom_bar(position = "dodge") +
+  scale_fill_manual(values = paleta(8))
+```
+Algunos detalles al representar datos que debemos tener en cuenta
+
+Aca hay overploting
+```{r}
+data_mundial_2007 <- paises %>% dplyr::filter(anio == 2007)
+
+ggplot(data = data_mundial_2007) +
+    geom_point(aes(x = continente, y = esperanza_de_vida, color = continente)) +
+    labs(title = "Expectativa de vida por continente",
+         y = "expectativa de vida")
+```
+Lo corregimos con jitter
+```{r}
+data_mundial_2007 <- paises %>% dplyr::filter(anio == 2007)
+
+ggplot(data = data_mundial_2007) +
+    geom_jitter(aes(x = continente, y = esperanza_de_vida, color = continente), width = 0.2) +
+    labs(title = "Expectativa de vida por continente",
+         y = "Expectativa de vida",
+         x = "Continente",
+         color = "Continente")
+```
+Lo corregimos con jitter y alpha
+```{r}
+data_mundial_2007 <- paises %>% dplyr::filter(anio == 2007)
+
+ggplot(data = data_mundial_2007) +
+    geom_jitter(aes(x = continente, y = esperanza_de_vida, color = continente),
+                width = 0.2,
+                alpha = 0.7) +
+    labs(title = "Expectativa de vida por continente",
+         y = "Expectativa de vida",
+         x = "Continente",
+         color = "Continente")
+```
+Pero en ocasiones (aqui con el pbi) los datos se agrupan mucho
+```{r}
+data_mundial_2007 <- paises %>% dplyr::filter(anio == 2007)
+
+ggplot(data = data_mundial_2007) +
+    geom_jitter(aes(x = continente, y = pib_per_capita, color = continente), width = 0.1) +
+    labs(title = "PBI por continente",
+         x = "Continente",
+         y = "PBI per capita",
+         color = "Continente")
+```
+Usamos escala logarítmica en y
+```{r}
+data_mundial_2007 <- paises %>% dplyr::filter(anio == 2007)
+
+ggplot(data = data_mundial_2007) +
+    geom_jitter(aes(x = continente, y = pib_per_capita, color = continente), width = 0.2) +
+    scale_y_log10() +  
+    labs(title = "PBI por continente",
+         x = "Continente",
+         y = "PBI per capita",
+         color = "Continente")
+```
+Texto alternativo
+```{r relacion-aleta-pico, fig.alt="Mientras más larga la aleta, más largo el pico. Los pingüinos Adelia son en general más pequeños, los Barbijos tiene aletas más largas que los Papúa pero picos similares."}
+
+datos::pinguinos %>% 
+  ggplot(aes(largo_pico_mm, largo_aleta_mm)) +
+  geom_point(aes(color = especie)) +
+  theme_minimal(base_size = 16,
+                base_family = "Arial Narrow")
+```
+PAUSA
+
+Themes - Estilos de Graficos
+
+```{r}
+pinguinos %>% ggplot(aes(x=sexo)) +
+  geom_bar(aes(fill=especie)) +
+  theme_bw()
+```
+```{r}
+pinguinos %>% ggplot(aes(x=sexo)) +
+  geom_bar(aes(fill=especie)) +
+  theme_void()
+```
+```{r}
+pinguinos %>% ggplot(aes(x=sexo)) +
+  geom_bar(aes(fill=especie)) +
+  theme_linedraw()
+```
+```{r}
+pinguinos %>% ggplot(aes(x=sexo)) +
+  geom_bar(aes(fill=especie)) +
+  theme_dark()
+```
+Podemos agregar temas desde algunos paquetes externos
+tufte vean el tipo de letra...
+```{r}
+library(ggthemes)
+
+pinguinos %>% ggplot(aes(largo_pico_mm, largo_aleta_mm)) +
+  geom_point(aes(colour = especie)) +
+  ggthemes::theme_tufte()
+```
+Podemos usar otros temas
+```{r}
+pinguinos %>% ggplot(aes(largo_pico_mm, largo_aleta_mm)) +
+  geom_point(aes(colour = especie)) +
+  ggthemes::theme_excel_new()
+```
+Cambiar el tamaño de la letra
+```{r}
+pinguinos %>% ggplot(aes(largo_pico_mm, largo_aleta_mm)) +
+  geom_point(aes(colour = especie), size = 4) +
+  theme_minimal(base_size = 24)
+```
+Podemos modificar casi todo lo que esta en el grafico
+```{r}
+pinguinos %>% ggplot(aes(largo_pico_mm, largo_aleta_mm)) +
+  geom_point(aes(colour = especie)) +
+  theme_minimal() +
+  theme(legend.background = element_rect(fill = "gray", color = "blue"), # presionar fn f1 para mostrar las opciones
+        legend.position = "bottom") # muy util en documentos
+```
+theme no cambia el tema de los geoms, eso es importante
+ggthemes si permite esos cambios
+
+
+Si tenemos que hacer muchos gráficos y queremos que compartan un mismo entorno estetico nos convendría crear nuestro propio tema (con todas las modificaciones que pensemos usar) y tenerlo centralizado en una parte del código
+
+```{r}
+mi_tema <- theme(legend.background = element_rect(fill = "gray", colour = "blue"), 
+        legend.position = "bottom") 
+# Veamos que es exactamente mi_tema
+str(mi_tema)
+```
+
+Y lo puedo aplicar en el resto de los graficos
+```{r}
+pinguinos %>% ggplot(aes(largo_pico_mm)) +
+  geom_histogram(aes(fill = especie), position = "dodge") +
+  theme_minimal() +
+  mi_tema
+```
+El orden en el que se aplican los temas importa:
+```{r}
+pinguinos %>% ggplot(aes(largo_pico_mm)) +
+  geom_histogram(aes(fill = especie), position = "dodge") +
+  mi_tema +
+  theme_dark()
+```
+Pero puede suceder que necesitemos hacer adaptaciones mínimas a nuestro tema personal. 
+Quizás cambiar el aspecto del gráfico de rectangular a cuadrado para usarlo en un reporte a dos columnas, por ejemplo
+Esto lo podríamos solucionar si nuestro tema aceptara argumentos.
+Vimos que un tema personalizado es en realidad una lista, pero y si creamos una funcion que acepta argumentos y devuelve una lista?
+
+Empecemos sin argumentos
+
+```{r}
+mi_tema <- function() {
+  theme_minimal(base_size = 12) +
+    theme(legend.background = element_rect(fill = "lightgray", colour = "blue", linewidth = 1),
+          panel.background = element_rect(fill = "lightblue"),
+          legend.position = "bottom",
+          axis.title.x = element_text(colour = "red"))
+}
+```
+Y lo aplicamos a un grafico
+```{r}
+pinguinos %>% ggplot(aes(largo_pico_mm)) +
+  geom_histogram(aes(fill = especie), position = "dodge") +
+  mi_tema() # con parentesis, porque ahora es una función
+```
+
+Re-escribimos el tema y le agregamos argumentos
+```{r}
+mi_tema <- function(letra_tamanio = 12,      # argumento tamaño de la letra base
+                    ancho_linea_leyenda = 1, # argumento ancho de la linea de borde de la leyenda     
+                    fondo = "lightblue")     # argumento color de fondo del grafico
+  {
+  theme_minimal(base_size = letra_tamanio) +     # aca aplico la letra
+    theme(legend.background = element_rect(fill = "lightgray", 
+                                           colour = "blue", 
+                                           linewidth = ancho_linea_leyenda), # aquí aplico el ancho de linea
+          panel.background = element_rect(fill = fondo),     # aqui aplico el fondo
+          legend.position = "bottom",
+          axis.title.x = element_text(colour = "red"))
+}
+```
+
+Y ahora se lo pasamos a un grafico
+```{r}
+pinguinos %>% ggplot(aes(largo_pico_mm)) +
+  geom_histogram(aes(fill = especie), position = "dodge") +
+  mi_tema(letra_tamanio = 20,
+          ancho_linea_leyenda = 0.5,
+          fondo = "lightyellow2") # aplico los argumentos especificos
+```
+Insisto: Vean como cada vez mas estamos haciendo gráficos con codigo, cada vez es mas programar que dibujar...
+
+Un tema a tener en cuenta al hacer temas es el de elegir colores contrastantes, sobre todo en donde hay datos que queremos destacar.
+
+Nos vemos la semana próxima
